@@ -137,11 +137,18 @@ def is_utf8(filename):
         return False    
 
 # Dynamically import renaming scripts from the 'scripts' directory
-SCRIPT_DIR = "Scripts"
+# Current directory of the script
+current_script_directory = os.path.dirname(os.path.abspath(__file__))
+
+# Dynamically import renaming scripts from the 'scripts' directory
+SCRIPT_DIR = os.path.join(current_script_directory, "Scripts")
 script_files = [f[:-3] for f in os.listdir(SCRIPT_DIR) if f.endswith('.py')]
 script_functions = {}
 
 non_utf8_files = []
+
+# Add the SCRIPT_DIR to the system path to allow importing modules
+sys.path.insert(0, SCRIPT_DIR)
 
 for script in script_files:
     script_path = os.path.join(SCRIPT_DIR, script + ".py")
@@ -149,12 +156,17 @@ for script in script_files:
         non_utf8_files.append(script_path)
     else:
         try:
-            script_module = __import__(f"{SCRIPT_DIR}.{script}", fromlist=[script])
+            # Import the script using the module name only, without the directory
+            script_module = __import__(script, fromlist=[script])
             standard_function_name = "rename"  # The standard function name
             if hasattr(script_module, standard_function_name):
                 script_functions[script] = getattr(script_module, standard_function_name)
         except Exception as e:
             print(f"Error loading {script}: {e}")
+
+# Remove the SCRIPT_DIR from the system path after importing to avoid conflicts
+sys.path.remove(SCRIPT_DIR)
+
 
 if non_utf8_files:
     warning_msg = "\nThe following files are not saved with UTF-8 encoding and may cause issues:\n"
@@ -385,7 +397,11 @@ def main():
     # Create the main application window with drag and drop support
     root = TkinterDnD.Tk()
     root.title("Rename Scripter")
-    root.iconbitmap('Settings/icon.ico')
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Settings', 'icon.ico')
+    if os.path.exists(icon_path):
+        root.iconbitmap(icon_path)
+    else:
+        print(f"Icon file not found at {icon_path}")
     root.geometry("900x700")  # Adjust the window size
 
     # Initialize the variable for Auto Preview before reading the config
@@ -531,4 +547,11 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"An uncaught exception occurred: {e}")
+        # Depending on the exception, you may want to import traceback and print the full stack trace
+        import traceback
+        traceback.print_exc()
+        input("Press Enter to exit...")  # This will keep the command window open until you press Enter
