@@ -1,11 +1,13 @@
 import os
 import subprocess
 import sys
+import configparser
+import uuid
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter import font as tkFont
 from tkinterdnd2 import DND_FILES, TkinterDnD
-import configparser
+
 
 # Function to check and install required modules
 def check_and_install_module(module_name):
@@ -42,9 +44,12 @@ def handle_f2_key(event=None):
     elif button_mode == RENAME_MODE:
         rename_files()
 
-config_path = 'Settings/config.ini'  # Replace with the full path if the file is not in the same directory
+# Get the directory of the currently executing script
+script_directory = os.path.dirname(os.path.abspath(__file__))
 
-# Function to read configuration from config.ini
+# Now join this with the relative path to your config.ini file.
+config_path = os.path.join(script_directory, 'Settings', 'config.ini')
+
 def read_config(config_path):
     config = configparser.ConfigParser()
     config.read(config_path)
@@ -60,6 +65,19 @@ def save_config(config_path, script_name, auto_preview_state):
     with open(config_path, 'w') as configfile:
         config.write(configfile)
 
+# Make sure the Settings directory exists
+if not os.path.exists(os.path.join(script_directory, 'Settings')):
+    os.makedirs(os.path.join(script_directory, 'Settings'))
+
+# Make sure the config.ini file exists
+config_path = os.path.join(script_directory, 'Settings', 'config.ini')
+if not os.path.isfile(config_path):
+    # Open the file with 'w+' to create it if it doesn't exist
+    with open(config_path, 'w+') as f:
+        f.write('[Settings]\n')
+        f.write('last_selected_script=\n')
+        f.write('auto_preview=True\n')
+
 def get_all_files_from_directory(directory):
     """Recursively fetch all files from a directory."""
     all_files = []
@@ -69,34 +87,41 @@ def get_all_files_from_directory(directory):
     return all_files
 
 def apply_renaming(rename_plan, directory):
-    global previous_state, last_directory, undo_button  # Add undo_button to the global declaration
+    global previous_state, last_directory, undo_button
     previous_state = {}
     last_directory = directory
 
     for old_name, new_name in rename_plan:
-        if old_name == new_name:
-            continue  # Skip renaming if the names are the same
         old_full_path = os.path.join(directory, old_name)
         new_full_path = os.path.join(directory, new_name)
-        if os.path.exists(new_full_path):
-            print(f"Error: The file {new_full_path} already exists.")
-            continue
-        try:
-            os.rename(old_full_path, new_full_path)
-            previous_state[new_name] = old_name
-        except Exception as e:
-            print(f"Error: {e}")
+
+        if old_name.lower() == new_name.lower():
+            # If the case-insensitive names are the same, rename to an intermediate unique name first
+            intermediate_full_path = os.path.join(directory, f"{uuid.uuid4()}{os.path.splitext(new_name)[1]}")
+            try:
+                os.rename(old_full_path, intermediate_full_path)
+                os.rename(intermediate_full_path, new_full_path)
+                previous_state[new_name] = old_name
+            except Exception as e:
+                print(f"Error: {e}")
+        else:
+            try:
+                os.rename(old_full_path, new_full_path)
+                previous_state[new_name] = old_name
+            except Exception as e:
+                print(f"Error: {e}")
 
     if previous_state:  # Only enable the undo button if at least one file was renamed
         undo_button.config(state=tk.NORMAL)
 
     # Refresh the file list after renaming
-    files_to_rename[:] = [os.path.join(directory, new_name) for _, new_name in rename_plan if old_name != new_name]
+    files_to_rename[:] = [os.path.join(directory, new_name) for _, new_name in rename_plan]
     file_treeview.delete(*file_treeview.get_children())
     for file in files_to_rename:
         file_treeview.insert("", "end", values=(os.path.basename(file), ""))
     
     return bool(previous_state)  # Return True if at least one file was renamed, False otherwise
+
 
 def undo_renaming():
     global undo_button, files_to_rename
