@@ -21,11 +21,11 @@ def check_and_install_module(module_name):
 check_and_install_module("tkinter")
 check_and_install_module("tkinterdnd2")
 
-# Store the previous state for undo functionality
+# Global variables to store the state of previous renaming actions and the last used directory
 previous_state = {}
 last_directory = ""
 
-# Set the mode for the preview/rename button
+# Constants to define different modes for the preview/rename button
 PREVIEW_MODE = 1
 RENAME_MODE = 2
 button_mode = PREVIEW_MODE  # Initial state of the button
@@ -86,42 +86,29 @@ def get_all_files_from_directory(directory):
             all_files.append(os.path.join(root, file))
     return all_files
 
-def apply_renaming(rename_plan, directory):
-    global previous_state, last_directory, undo_button
+def apply_renaming(rename_plan):
+    global previous_state, undo_button
     previous_state = {}
-    last_directory = directory
 
-    for old_name, new_name in rename_plan:
-        old_full_path = os.path.join(directory, old_name)
+    # Iterate over each file in the rename plan and perform the renaming operation
+    for old_full_path, new_name, directory in rename_plan:
         new_full_path = os.path.join(directory, new_name)
 
-        if old_name.lower() == new_name.lower():
-            # If the case-insensitive names are the same, rename to an intermediate unique name first
-            intermediate_full_path = os.path.join(directory, f"{uuid.uuid4()}{os.path.splitext(new_name)[1]}")
-            try:
-                os.rename(old_full_path, intermediate_full_path)
-                os.rename(intermediate_full_path, new_full_path)
-                previous_state[new_name] = old_name
-            except Exception as e:
-                print(f"Error: {e}")
-        else:
-            try:
-                os.rename(old_full_path, new_full_path)
-                previous_state[new_name] = old_name
-            except Exception as e:
-                print(f"Error: {e}")
+        # Adding detailed logging before attempting to rename
+        print(f"Attempting to rename: '{old_full_path}' to '{new_full_path}'")
+
+        try:
+            # Direct renaming without intermediate step
+            os.rename(old_full_path, new_full_path)
+            previous_state[new_name] = os.path.basename(old_full_path)
+            print(f"Successfully renamed: '{old_full_path}' to '{new_full_path}'")
+        except Exception as e:
+            print(f"Error renaming: {e} | From '{old_full_path}' to '{new_full_path}'")
 
     if previous_state:  # Only enable the undo button if at least one file was renamed
         undo_button.config(state=tk.NORMAL)
 
-    # Refresh the file list after renaming
-    files_to_rename[:] = [os.path.join(directory, new_name) for _, new_name in rename_plan]
-    file_treeview.delete(*file_treeview.get_children())
-    for file in files_to_rename:
-        file_treeview.insert("", "end", values=(os.path.basename(file), ""))
-    
     return bool(previous_state)  # Return True if at least one file was renamed, False otherwise
-
 
 def undo_renaming():
     global undo_button, files_to_rename
@@ -129,7 +116,7 @@ def undo_renaming():
         messagebox.showinfo("Undo Unavailable", "No renaming action to undo.")
         return
 
-    # Perform the undo operation
+    # Iterate over the previous state to revert the renaming actions
     for new_name, old_name in previous_state.items():
         new_full_path = os.path.join(last_directory, new_name)
         old_full_path = os.path.join(last_directory, old_name)
@@ -201,18 +188,24 @@ if non_utf8_files:
 
 
 def on_script_select(files, chosen_script):
+    # Generate and preview the rename plan based on the selected script and user confirmation
     renaming_function = script_functions[chosen_script]
     rename_plan = renaming_function(files)
     
-    # Determine directory from the dropped files
-    directory = os.path.dirname(files[0])
+    # Modify the rename plan to include full file path, new name, and directory
+    modified_rename_plan = []
+    for old, new in rename_plan:
+        full_old_path = next((f for f in files if os.path.basename(f) == old), None)
+        if full_old_path:
+            directory = os.path.dirname(full_old_path)
+            modified_rename_plan.append((full_old_path, new, directory))
 
     # Preview the renaming to the user
-    plan_str = "\n".join([f"{old} -> {new}" for old, new in rename_plan])
+    plan_str = "\n".join([f"{old} -> {new}" for old, new in modified_rename_plan])
     is_proceed = messagebox.askyesno("Preview Renaming", f"Do you want to proceed with the following renaming?\n\n{plan_str}")
-    
+        
     if is_proceed:
-        apply_renaming(rename_plan, directory)
+        apply_renaming(modified_rename_plan)
         messagebox.showinfo("Renaming Complete", "Files have been renamed.")
     else:
         messagebox.showinfo("Renaming Cancelled", "Files renaming has been cancelled.")
@@ -260,7 +253,7 @@ def on_drop(event):
     # Clean the dropped items from any leading/trailing braces and whitespace
     dropped_items = [item.strip('{} \n\r') for item in dropped_items]
 
-    # Now we process each dropped item
+    # Process dropped items (files/directories) and add them to the renaming list
     for item in dropped_items:
         # Check if the item is a directory or a file
         if os.path.isdir(item):
@@ -352,11 +345,15 @@ def rename_files():
     config = read_config(config_path)
     ask_confirmation = config.getboolean('Settings', 'ask_confirmation', fallback=True)
 
-    # Get the directory of the first file in the list
-    directory = os.path.dirname(files_to_rename[0])
-
-    # Extract the rename plan from the treeview
-    rename_plan = [(file_treeview.set(item, 'Old Name'), file_treeview.set(item, 'New Name')) for item in file_treeview.get_children()]
+    # Modify the rename plan to include full file path, new name, and directory
+    modified_rename_plan = []
+    for item in file_treeview.get_children():
+        old_name = file_treeview.set(item, 'Old Name')
+        new_name = file_treeview.set(item, 'New Name')
+        full_old_path = next((f for f in files_to_rename if os.path.basename(f) == old_name), None)
+        if full_old_path:
+            directory = os.path.dirname(full_old_path)
+            modified_rename_plan.append((full_old_path, new_name, directory))
 
     is_proceed = True
     if ask_confirmation:
@@ -366,7 +363,7 @@ def rename_files():
     if is_proceed:
         # Apply the renaming
         try:
-            successful_renames = apply_renaming(rename_plan, directory)
+            successful_renames = apply_renaming(modified_rename_plan)
             if successful_renames and ask_confirmation:
                 messagebox.showinfo("Renaming Complete", "Files have been renamed.")
 
@@ -374,14 +371,14 @@ def rename_files():
             file_treeview.delete(*file_treeview.get_children())
             files_to_rename.clear()  # Clear the existing list of files to rename
 
-            for old_name, new_name in rename_plan:
+            for full_old_path, new_name, directory in modified_rename_plan:
                 if new_name:  # Only update the name if a new name was provided
                     file_treeview.insert("", "end", values=(new_name, ""))
                     files_to_rename.append(os.path.join(directory, new_name))  # Append the new name to files_to_rename list
                 else:
-                    # If the file was not renamed, keep the old name
+                    old_name = os.path.basename(full_old_path)
                     file_treeview.insert("", "end", values=(old_name, ""))
-                    files_to_rename.append(os.path.join(directory, old_name))  # Re-append the old name to files_to_rename list
+                    files_to_rename.append(full_old_path)  # Re-append the old name to files_to_rename list
 
             # Reset the button to "Preview Name" after renaming is complete
             button_mode = PREVIEW_MODE
@@ -395,6 +392,7 @@ def rename_files():
     clear_rename_plan()  # Clear the rename plan to prevent redundant renames
     # Save the last selected script
     save_config(config_path, script_listbox.get(script_listbox.curselection()), auto_preview_var.get())
+
 
 # Global function to update the state of the "Preview Name" button
 def update_button_state():
@@ -419,7 +417,7 @@ def main():
     print("Entering main function...")  # Debug print
     global root, script_listbox, file_treeview, run_button, undo_button, auto_preview_checkbox, auto_preview_var
 
-    # Create the main application window with drag and drop support
+    # Set up the main GUI elements including frames, buttons, and treeview for file listing
     root = TkinterDnD.Tk()
     root.title("Rename Scripter")
     icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Settings', 'icon.ico')
