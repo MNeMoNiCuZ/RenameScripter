@@ -104,7 +104,7 @@ def apply_renaming(rename_plan):
             print(f"Successfully renamed: '{old_full_path}' to '{new_full_path}'")
         except Exception as e:
             print(f"Error renaming: {e} | From '{old_full_path}' to '{new_full_path}'")
-
+        previous_state[new_full_path] = old_full_path  # Store full paths for undo
     if previous_state:  # Only enable the undo button if at least one file was renamed
         undo_button.config(state=tk.NORMAL)
 
@@ -116,10 +116,7 @@ def undo_renaming():
         messagebox.showinfo("Undo Unavailable", "No renaming action to undo.")
         return
 
-    # Iterate over the previous state to revert the renaming actions
-    for new_name, old_name in previous_state.items():
-        new_full_path = os.path.join(last_directory, new_name)
-        old_full_path = os.path.join(last_directory, old_name)
+    for new_full_path, old_full_path in previous_state.items():
         try:
             os.rename(new_full_path, old_full_path)
         except Exception as e:
