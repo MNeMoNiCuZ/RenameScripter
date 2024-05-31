@@ -5,21 +5,13 @@ RenameScripter is a versatile renaming tool equipped with a graphical user inter
 The GUI serves as a centralized platform where users can easily access and run an assortment of renaming scripts. These scripts are intentionally simple to create, aligning with the goal of facilitating easy script generation, even through requests to ChatGPT.
 
 # Installation
-Set up a virtual environment to run the script. Feel free to run the `setup.bat` to automatically set one up.
+1. Set up a virtual environment to run the script. Feel free to run the `setup.bat` to automatically set one up.
 
-Install the requirements `pip install -r requirements.txt`. This is optionally done by the setup script.
+2. Install the requirements `pip install -r requirements.txt`. This is optionally done by the setup script.
 
 # Using the tool
 
-1. Place the images or folders of images in the /input/ directory.
-2. Run `1-rate.bat`
-3. Run `2-view.bat`
-
-Alternatively:
-
-1. Place the images or folders of images in the /input/ directory.
-2. Activate your environment and run `rate.py`.
-3. Launch a web server: `python -m http.server 8000` and open [`http://localhost:8000/index.html`](http://localhost:8000/index.html) in your web browser.
+1. Run `RenameScripter.bat` to launch the "venv"-environment and then launch the script, or run `RenameScripter.py` if you have no specific environment set up for the tool.
 
 ## Included Sample Scripts
 
