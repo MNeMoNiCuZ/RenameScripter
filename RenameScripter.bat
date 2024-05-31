@@ -1,2 +1,3 @@
-@echo off
-"C:\Path\To\Your\Python\python.exe" "C:\Path\To\The\Script\RenameScripter.pyw" %*
+@echo off 
+call venv\Scripts\activate
+cmd /k "cd /d %~dp0 & call venv\Scripts\activate & python RenameScripter.py"
