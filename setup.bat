@@ -5,11 +5,18 @@ setlocal enabledelayedexpansion
 set COUNT=0
 
 :: Directly parse the output of `py -0p` to get versions and their paths
-for /f "tokens=1,* delims=" %%a in ('py -0p') do (
+for /f "tokens=1,*" %%a in ('py -0p') do (
     :: Filter lines that start with a dash, indicating a Python version, and capture the path
     echo %%a | findstr /R "^[ ]*-" > nul && (
         set /a COUNT+=1
-        set "PYTHON_VER_!COUNT!=%%a"
+        ::set "PYTHON_VER_!COUNT!=%%a"
+        set "pythonVersion=%%a"
+        :: a quick, dirty but understandable solution
+        set "pythonVersion=!pythonVersion:-32=!"
+        set "pythonVersion=!pythonVersion:-64=!"
+        set "pythonVersion=!pythonVersion:-=!"
+        set "pythonVersion=!pythonVersion:V:=!"
+        set "PYTHON_VER_!COUNT!=!pythonVersion!"
         set "PYTHON_PATH_!COUNT!=%%b"  :: Store the path in a separate variable
         echo !COUNT!. %%a at %%b
     )
