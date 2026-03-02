@@ -2,11 +2,20 @@ import os
 import subprocess
 import sys
 import configparser
-import uuid
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter import font as tkFont
 from tkinterdnd2 import DND_FILES, TkinterDnD
+
+
+def _no_window_kwargs():
+    """Return subprocess kwargs that suppress the console window on Windows."""
+    if sys.platform == "win32":
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0  # SW_HIDE
+        return {"startupinfo": si, "creationflags": subprocess.CREATE_NO_WINDOW}
+    return {}
 
 
 # Function to check and install required modules
@@ -15,7 +24,7 @@ def check_and_install_module(module_name):
         __import__(module_name)
     except ImportError:
         print(f"Installing required module: {module_name}...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", module_name])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", module_name], **_no_window_kwargs())
 
 # Check for required modules
 check_and_install_module("tkinter")
@@ -45,7 +54,12 @@ def handle_f2_key(event=None):
         rename_files()
 
 # Get the directory of the currently executing script
-script_directory = os.path.dirname(os.path.abspath(__file__))
+# When running as a PyInstaller --onefile exe, __file__ points to a temp folder;
+# use the exe's real location instead so external Scripts/Settings are found.
+if getattr(sys, 'frozen', False):
+    script_directory = os.path.dirname(sys.executable)
+else:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
 
 # Now join this with the relative path to your config.ini file.
 config_path = os.path.join(script_directory, 'Settings', 'config.ini')
@@ -146,8 +160,8 @@ def is_utf8(filename):
         return False    
 
 # Dynamically import renaming scripts from the 'scripts' directory
-# Current directory of the script
-current_script_directory = os.path.dirname(os.path.abspath(__file__))
+# Current directory of the script (reuse frozen-aware path)
+current_script_directory = script_directory
 
 # Dynamically import renaming scripts from the 'scripts' directory
 SCRIPT_DIR = os.path.join(current_script_directory, "Scripts")

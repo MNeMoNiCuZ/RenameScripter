@@ -5,7 +5,7 @@ RenameScripter is a versatile renaming tool equipped with a graphical user inter
 The GUI serves as a centralized platform where users can easily access and run an assortment of renaming scripts. These scripts are intentionally simple to create, aligning with the goal of facilitating easy script generation, even through requests to ChatGPT.
 
 # Installation
-1. Set up a virtual environment to run the script. Feel free to run the `setup.bat` to automatically set one up.
+1. Set up a virtual environment to run the script. Feel free to run the `venv_create.bat` to automatically set one up.
 
 2. Install the requirements `pip install -r requirements.txt`. This is optionally done by the setup script.
 
