@@ -70,12 +70,13 @@ def read_config(config_path):
     return config
 
 # Save Config
-def save_config(config_path, script_name, auto_preview_state):
+def save_config(config_path, script_name, auto_preview_state, remember_last_script_state):
     config = read_config(config_path)
     if 'Settings' not in config:
         config['Settings'] = {}
     config['Settings']['last_selected_script'] = script_name
     config['Settings']['auto_preview'] = str(auto_preview_state)
+    config['Settings']['remember_last_script'] = str(remember_last_script_state)
     with open(config_path, 'w') as configfile:
         config.write(configfile)
 
@@ -91,6 +92,7 @@ if not os.path.isfile(config_path):
         f.write('[Settings]\n')
         f.write('last_selected_script=\n')
         f.write('auto_preview=True\n')
+        f.write('remember_last_script=True\n')
 
 def get_all_files_from_directory(directory):
     """Recursively fetch all files from a directory."""
@@ -291,9 +293,11 @@ def clear_files():
     update_button_state()
 
 def run_selected_script():
-    chosen_script = script_listbox.get(script_listbox.curselection())
+    selection = script_listbox.curselection()
+    if not selection:
+        return
+    chosen_script = script_listbox.get(selection[0])
     if not chosen_script:
-        messagebox.showerror("Error", "Please select a renaming script from the list.")
         return
 
     # Ensure there are files to rename
@@ -402,7 +406,8 @@ def rename_files():
     update_button_state()  # Update the button state to reflect the change
     clear_rename_plan()  # Clear the rename plan to prevent redundant renames
     # Save the last selected script
-    save_config(config_path, script_listbox.get(script_listbox.curselection()), auto_preview_var.get())
+    _sel = script_listbox.curselection()
+    save_config(config_path, script_listbox.get(_sel[0]) if _sel else "", auto_preview_var.get(), remember_last_script_var.get())
 
 
 # Global function to update the state of the "Preview Name" button
@@ -438,11 +443,14 @@ def main():
         print(f"Icon file not found at {icon_path}")
     root.geometry("900x700")  # Adjust the window size
 
-    # Initialize the variable for Auto Preview before reading the config
+    # Initialize settings variables before reading the config
     auto_preview_var = tk.IntVar()
+    remember_last_script_var = tk.IntVar()
     config = read_config(config_path)
     auto_preview_state = config.getboolean('Settings', 'auto_preview', fallback=True)
+    remember_last_script_state = config.getboolean('Settings', 'remember_last_script', fallback=True)
     auto_preview_var.set(auto_preview_state)
+    remember_last_script_var.set(remember_last_script_state)
     last_used_script = config.get('Settings', 'last_selected_script', fallback=None)
 
     # Create a frame to hold the buttons on their own row
@@ -465,16 +473,18 @@ def main():
     undo_button.pack(side=tk.LEFT, padx=5, pady=10)
     undo_button['padding'] = (10, 10)
 
-    # Create a checkbox for "Automatically Preview"
-    auto_preview_checkbox = ttk.Checkbutton(button_frame, text="Automatically Preview", variable=auto_preview_var)
-    auto_preview_checkbox.pack(side=tk.LEFT, padx=5, pady=10)
+    def save_current_config():
+        sel = script_listbox.curselection()
+        script_name = script_listbox.get(sel[0]) if sel else ""
+        save_config(config_path, script_name, auto_preview_var.get(), remember_last_script_var.get())
 
-    def toggle_auto_preview():
-        # This function will be called whenever the checkbox is toggled
-        auto_preview_state = auto_preview_var.get()
-        save_config(config_path, script_listbox.get(script_listbox.curselection()), auto_preview_state)
-
-    auto_preview_checkbox.config(command=toggle_auto_preview)
+    # Settings menu
+    menubar = tk.Menu(root)
+    settings_menu = tk.Menu(menubar, tearoff=0)
+    settings_menu.add_checkbutton(label="Automatically Preview on Script Select", variable=auto_preview_var, command=save_current_config)
+    settings_menu.add_checkbutton(label="Remember Last Used Script", variable=remember_last_script_var, command=save_current_config)
+    menubar.add_cascade(label="Settings", menu=settings_menu)
+    root.config(menu=menubar)
 
     # Create a main frame that will contain the listbox and the treeview side by side
     main_frame = ttk.Frame(root)
@@ -501,12 +511,11 @@ def main():
     for script in script_functions:
         script_listbox.insert(tk.END, script)
 
-    # Attempt to select the last used script if it's in the list
-    if last_used_script in script_files:
-        last_script_index = script_files.index(last_used_script)
-        script_listbox.selection_set(last_script_index)
-    else:
-        script_listbox.selection_set(0)  # Default to the first script if not found or if None
+    # Attempt to select the last used script if the setting is enabled
+    script_names = list(script_functions.keys())  # listbox is populated from script_functions, not script_files
+    if remember_last_script_var.get() and last_used_script and last_used_script in script_names:
+        script_listbox.selection_set(script_names.index(last_used_script))
+    # If not remembering (or no valid last script), leave nothing selected
 
 
     # Create the frame for the Old Name and New Name fields and add a scrollbar
@@ -588,4 +597,5 @@ if __name__ == "__main__":
         # Depending on the exception, you may want to import traceback and print the full stack trace
         import traceback
         traceback.print_exc()
-        input("Press Enter to exit...")  # This will keep the command window open until you press Enter
+        if sys.stdin and not sys.stdin.closed:
+            input("Press Enter to exit...")  # This will keep the command window open until you press Enter
