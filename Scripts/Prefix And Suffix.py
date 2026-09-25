@@ -1,27 +1,17 @@
 import os
-from tkinter import simpledialog
 
-def rename(files):
-    rename_plan = []
+NAME = "Prefix And Suffix"
+DESCRIPTION = "Adds text before and/or after the name. The suffix goes before the extension."
 
-    # Create a root window and hide it
-    root = simpledialog.Tk()
-    root.withdraw()
+PARAMS = {
+    "prefix": {"label": "Prefix", "default": ""},
+    "suffix": {"label": "Suffix", "default": ""},
+}
 
-    # Ask the user for a prefix
-    prefix = simpledialog.askstring("Input", "Enter the prefix to add (optional):", parent=root)
-    # Ask the user for a suffix
-    suffix = simpledialog.askstring("Input", "Enter the suffix to add (optional):", parent=root)
 
-    # Destroy the root window after input is complete
-    root.destroy()
-
-    # Iterate through each file
-    for file_path in files:
-        file_name, file_extension = os.path.splitext(os.path.basename(file_path))
-        
-        # Add prefix and suffix if provided
-        new_file_name = f"{prefix if prefix else ''}{file_name}{suffix if suffix else ''}{file_extension}"
-        rename_plan.append((os.path.basename(file_path), new_file_name))
-
-    return rename_plan
+def rename(files, prefix="", suffix=""):
+    new_names = []
+    for path in files:
+        name, ext = os.path.splitext(os.path.basename(path))
+        new_names.append(f"{prefix}{name}{suffix}{ext}")
+    return new_names

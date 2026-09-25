@@ -1,9 +1,8 @@
 import os
 
+NAME = "Replace Space With Underscore"
+DESCRIPTION = "Replaces every space in the file name with an underscore."
+
+
 def rename(files):
-    rename_plan = []
-    for file_path in files:
-        filename = os.path.basename(file_path)
-        new_filename = filename.replace(' ', '_')
-        rename_plan.append((filename, new_filename))
-    return rename_plan
+    return [os.path.basename(f).replace(" ", "_") for f in files]

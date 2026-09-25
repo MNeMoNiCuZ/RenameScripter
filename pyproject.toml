@@ -1,0 +1,22 @@
+[project]
+name = "renamescripter"
+dynamic = ["version"]
+description = "Batch rename files with small, hot-reloadable Python scripts."
+requires-python = ">=3.10"
+license = { text = "GPL-3.0" }
+dependencies = ["PySide6-Essentials>=6.6"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pyinstaller>=6.6"]
+
+[project.scripts]
+renamescripter = "renamescripter.__main__:main"
+
+[tool.setuptools]
+packages = ["renamescripter", "renamescripter.gui"]
+
+[tool.setuptools.dynamic]
+version = { attr = "renamescripter.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

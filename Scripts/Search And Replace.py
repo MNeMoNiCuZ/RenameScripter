@@ -1,32 +1,33 @@
 import os
-from tkinter import simpledialog
+import re
 
-def rename(files):
-    rename_plan = []
+NAME = "Search And Replace"
+DESCRIPTION = "Replaces text in file names. Supports plain text or regular expressions."
 
-    # Ask the user for the search and replace strings
-    root = simpledialog.Tk()
-    root.withdraw()  # Hide the root window
+PARAMS = {
+    "search": {"label": "Search for", "default": ""},
+    "replace": {"label": "Replace with", "default": ""},
+    "regex": {"type": "bool", "label": "Regular expression", "default": False,
+              "help": "Use Python regex syntax; refer to groups as \\1 in the replacement."},
+    "case_sensitive": {"type": "bool", "label": "Case sensitive", "default": True},
+    "include_extension": {"type": "bool", "label": "Also replace in extension", "default": False},
+}
 
-    # Get the search string from the user
-    search_string = simpledialog.askstring("Input", "Enter the search string:", parent=root)
-    if search_string is None:  # If the user pressed cancel
-        root.destroy()
-        return []  # No operation
 
-    # Get the replace string from the user
-    replace_string = simpledialog.askstring("Input", "Enter the replace string:", parent=root)
-    if replace_string is None:  # If the user pressed cancel
-        root.destroy()
-        return []  # No operation
+def rename(files, search="", replace="", regex=False, case_sensitive=True, include_extension=False):
+    if not search:
+        return [None] * len(files)  # nothing to do yet
+    flags = 0 if case_sensitive else re.IGNORECASE
+    pattern = re.compile(search if regex else re.escape(search), flags)
+    if not regex:
+        replace = replace.replace("\\", "\\\\")  # treat replacement literally
 
-    root.destroy()
-
-    # Go through the list of files and create a rename plan
-    for file_path in files:
-        file_name = os.path.basename(file_path)
-        # Replace the search string with the replace string in the file name
-        new_file_name = file_name.replace(search_string, replace_string)
-        rename_plan.append((file_name, new_file_name))
-
-    return rename_plan
+    new_names = []
+    for path in files:
+        filename = os.path.basename(path)
+        if include_extension:
+            new_names.append(pattern.sub(replace, filename))
+        else:
+            name, ext = os.path.splitext(filename)
+            new_names.append(pattern.sub(replace, name) + ext)
+    return new_names

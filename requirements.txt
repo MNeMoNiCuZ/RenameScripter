@@ -1,1 +1,1 @@
-tkinterdnd2
+PySide6-Essentials>=6.6
