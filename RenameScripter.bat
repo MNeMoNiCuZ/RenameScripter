@@ -1,4 +1,4 @@
 @echo off
 cd /d %~dp0
-call venv\Scripts\activate
+if exist venv\Scripts\activate.bat call venv\Scripts\activate.bat
 start "" pythonw RenameScripter.py %*

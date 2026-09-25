@@ -1,14 +1,12 @@
 import os
 
-def invert_filename(filename):
-    name, ext = os.path.splitext(filename)
-    inverted_name = name[::-1]
-    return inverted_name + ext
+NAME = "Inverter"
+DESCRIPTION = "Reverses the file name (the extension is kept): 'abc.txt' -> 'cba.txt'."
+
 
 def rename(files):
-    rename_plan = []
-    for file in files:
-        filename = os.path.basename(file)
-        new_name = invert_filename(filename)
-        rename_plan.append((filename, new_name))
-    return rename_plan
+    new_names = []
+    for path in files:
+        name, ext = os.path.splitext(os.path.basename(path))
+        new_names.append(name[::-1] + ext)
+    return new_names

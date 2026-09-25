@@ -1,12 +1,21 @@
 import os
 import re
 
-def rename(files):
-    rename_plan = []
-    for file_path in files:
-        filename = os.path.basename(file_path)
-        name, ext = os.path.splitext(filename)
-        cleaned_name = re.sub(r'\d+', '', name)
-        new_filename = f"{cleaned_name}{ext}"
-        rename_plan.append((filename, new_filename))
-    return rename_plan
+NAME = "Remove Numbers"
+DESCRIPTION = "Removes all digits from the name (the extension is kept)."
+
+PARAMS = {
+    "tidy": {"type": "bool", "label": "Tidy up leftover spaces/separators", "default": True},
+}
+
+
+def rename(files, tidy=True):
+    new_names = []
+    for path in files:
+        name, ext = os.path.splitext(os.path.basename(path))
+        cleaned = re.sub(r"\d+", "", name)
+        if tidy:
+            cleaned = re.sub(r"([ _\-.])[ _\-.]+", r"\1", cleaned).strip(" _-.")
+            cleaned = re.sub(r"\(\s*\)", "", cleaned).strip()
+        new_names.append(f"{cleaned or name}{ext}")
+    return new_names
